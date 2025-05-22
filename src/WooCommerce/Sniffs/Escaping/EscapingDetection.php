@@ -13,7 +13,6 @@ use PHP_CodeSniffer\Files\File;
  */
 class EscapingDetection implements Sniff
 {
-
     /**
      * A list of tokenizers this sniff supports.
      *

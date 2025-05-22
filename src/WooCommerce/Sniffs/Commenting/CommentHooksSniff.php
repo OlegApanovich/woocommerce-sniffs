@@ -24,23 +24,13 @@ class CommentHooksSniff implements Sniff
     ];
 
     /**
-     * A list of specfic hooks to listen to.
-     *
-     * @var array
-     */
-    public $hooks = [
-        'do_action',
-        'apply_filters',
-    ];
-
-    /**
      * Returns an array of tokens this test wants to listen for.
      *
      * @return array
      */
     public function register(): array
     {
-        return [T_STRING];
+        return [T_ECHO];
     }
 
     /**
@@ -53,68 +43,16 @@ class CommentHooksSniff implements Sniff
     public function process(File $phpcsFile, $stackPtr)
     {
         $tokens = $phpcsFile->getTokens();
+        $nextToken = $phpcsFile->findNext(T_WHITESPACE, $stackPtr + 1, null, true);
 
-        if (! in_array($tokens[$stackPtr]['content'], $this->hooks)) {
+        if ($nextToken === false || $tokens[$nextToken]['code'] !== T_VARIABLE) {
             return;
         }
 
-        $previous_comment = $phpcsFile->findPrevious(Tokens::$commentTokens, ( $stackPtr - 1 ));
-
-        if (false !== $previous_comment) {
-            $correctly_placed = false;
-
-            if (( $tokens[ $previous_comment ]['line'] + 1 ) === $tokens[ $stackPtr ]['line']) {
-                $correctly_placed = true;
-            }
-
-            if (true === $correctly_placed) {
-                if (\T_COMMENT === $tokens[ $previous_comment ]['code']) {
-                    $phpcsFile->addError(
-                        'A "hook" comment must be a "/**" style docblock comment.',
-                        $stackPtr,
-                        'HookCommentWrongStyle'
-                    );
-
-                    return;
-                } elseif (\T_DOC_COMMENT_CLOSE_TAG === $tokens[ $previous_comment ]['code']) {
-                    $comment_start = $phpcsFile->findPrevious(\T_DOC_COMMENT_OPEN_TAG, ( $previous_comment - 1 ));
-
-                    // Iterate through each comment to check for "@since" tag.
-                    foreach ($tokens[ $comment_start ]['comment_tags'] as $tag) {
-                        if ($tokens[$tag]['content'] === '@since') {
-                            // Check if there is a version after the @since tag.
-                            if (! preg_match('/\d+\.\d+\.?\d?/', $tokens[$tag+2]['content'])) {
-                                $phpcsFile->addError(
-                                    'A "@since" tag was found but no version declared. Required format <x.x> or <x.x.x>',
-                                    $stackPtr,
-                                    'MissingSinceVersionComment'
-                                );
-
-                                return;
-                            }
-
-                            return;
-                        }
-                    }
-
-                    $phpcsFile->addError(
-                        'Docblock comment was found for the hook but does not contain a "@since" versioning.',
-                        $stackPtr,
-                        'MissingSinceComment'
-                    );
-
-                    return;
-                }
-            }
-        }
-
-        // Found hook but no docblock comment.
         $phpcsFile->addError(
-            'A hook was found, but was not accompanied by a docblock comment on the line above to clarify the meaning of the hook.',
-            $stackPtr,
-            'MissingHookComment'
+            'Outputting a variable with echo without escaping.',
+            $nextToken,
+            'UnescapedEcho'
         );
-
-        return;
     }
 }
