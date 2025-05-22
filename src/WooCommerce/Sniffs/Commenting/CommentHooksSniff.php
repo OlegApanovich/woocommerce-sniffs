@@ -23,13 +23,7 @@ class CommentHooksSniff implements Sniff
         'PHP',
     ];
 
-    /**
-     * Returns an array of tokens this test wants to listen for.
-     *
-     * @return array
-     */
-    public function register(): array
-    {
+    public function register() {
         return [T_CONCAT_EQUAL]; // .=
     }
 
@@ -46,12 +40,18 @@ class CommentHooksSniff implements Sniff
         $end = $this->findExpressionEnd($phpcsFile, $stackPtr);
         for ($i = $stackPtr + 1; $i <= $end; $i++) {
             if ($tokens[$i]['code'] === T_VARIABLE) {
+                // Skip $this->something
+                $next = $phpcsFile->findNext(T_OBJECT_OPERATOR, $i + 1, $i + 3);
+                if ($tokens[$i]['content'] === '$this' && $next !== false) {
+                    continue;
+                }
+
                 if (! $this->isEscaped($phpcsFile, $i)) {
                     $phpcsFile->addWarning(
                         'Variable %s concatenated to $output without escaping.',
                         $i,
                         'UnescapedOutputConcat',
-                        [ $tokens[$i]['content'] ]
+                        [$tokens[$i]['content']]
                     );
                 }
             }
