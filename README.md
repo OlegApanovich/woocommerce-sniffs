@@ -1,23 +1,3 @@
-# WooCommerce Sniffs
-
-Collection of PHP_CodeSniffer sniffs for WooCommerce.
-
-## Installation
-
-```php
-composer require woocommerce/woocommerce-sniffs
-```
-
-## Usage
-
-### Command line
-
-```bash
-./vendor/bin/phpcs --standard=WooCommerce-Core <file>
-```
-
-### Config file
-
 PHPCS config file:
 
 ```xml
@@ -42,9 +22,37 @@ PHPCS config file:
 		<exclude-pattern>tests/</exclude-pattern>
 	</rule>
 </ruleset>
-```
 
 
-## Changelog
-
-[See changelog for details](https://github.com/woocommerce/woocommerce-sniffs/blob/master/CHANGELOG.md)
+{
+  "require": {
+  },
+  "require-dev": {
+    "wp-coding-standards/wpcs": "3.1.0",
+    "phpcompatibility/php-compatibility": "^9.1",
+    "rarst/phpcs-cognitive-complexity": "^0.2",
+    "woocommerce/woocommerce-sniffs": "dev-trunk"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/OlegApanovich/woocommerce-sniffs"
+    }
+  ],
+  "autoload": {
+    "psr-0": {
+      "ComposerHooks": "_.tools/"
+    }
+  },
+  "config": {
+    "cache-files-ttl": 0,
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  },
+  "scripts": {
+    "post-update-cmd": "ComposerHooks::postUpdateCmd",
+    "post-install-cmd": "ComposerHooks::postInstallCmd",
+    "update-classmap": "ComposerHooks::updateClassmap"
+  }
+}
