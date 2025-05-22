@@ -30,29 +30,69 @@ class CommentHooksSniff implements Sniff
      */
     public function register(): array
     {
-        return [T_ECHO];
+        return [T_CONCAT_EQUAL]; // .=
     }
 
-    /**
-     * Processes this test, when one of its tokens is encountered.
-     *
-     * @param \PHP_CodeSniffer\Files\File $phpcsFile The file being scanned.
-     * @param int                         $stackPtr  The position of the current token
-     *                                               in the stack passed in $tokens.
-     */
-    public function process(File $phpcsFile, $stackPtr)
-    {
+    public function process(File $phpcsFile, $stackPtr) {
         $tokens = $phpcsFile->getTokens();
-        $nextToken = $phpcsFile->findNext(T_WHITESPACE, $stackPtr + 1, null, true);
 
-        if ($nextToken === false || $tokens[$nextToken]['code'] !== T_VARIABLE) {
+        // Make sure the LHS is $output
+        $prev = $phpcsFile->findPrevious(T_VARIABLE, $stackPtr - 1);
+        if ($prev === false || $tokens[$prev]['content'] !== '$output') {
             return;
         }
 
-        $phpcsFile->addError(
-            'Outputting a variable with echo without escaping.',
-            $nextToken,
-            'UnescapedEcho'
-        );
+        // Scan forward from .= to the end of the expression
+        $end = $this->findExpressionEnd($phpcsFile, $stackPtr);
+        for ($i = $stackPtr + 1; $i <= $end; $i++) {
+            if ($tokens[$i]['code'] === T_VARIABLE) {
+                if (! $this->isEscaped($phpcsFile, $i)) {
+                    $phpcsFile->addWarning(
+                        'Variable %s concatenated to $output without escaping.',
+                        $i,
+                        'UnescapedOutputConcat',
+                        [ $tokens[$i]['content'] ]
+                    );
+                }
+            }
+        }
+    }
+
+    private function isEscaped(File $phpcsFile, $varIndex) {
+        $tokens = $phpcsFile->getTokens();
+        $func = $phpcsFile->findPrevious(T_STRING, $varIndex - 1, null, false, null, true);
+
+        if ($func === false) {
+            return false;
+        }
+
+        $escapers = [
+            'esc_html', 'esc_attr', 'esc_url',
+            'wp_kses_post', 'esc_js', 'esc_textarea'
+        ];
+
+        return in_array($tokens[$func]['content'], $escapers, true);
+    }
+
+    private function findExpressionEnd(File $phpcsFile, $start) {
+        $tokens = $phpcsFile->getTokens();
+        $end = $start;
+        $openBrackets = 0;
+        $max = count($tokens);
+
+        for ($i = $start + 1; $i < $max; $i++) {
+            $end = $i;
+            if ($tokens[$i]['code'] === T_SEMICOLON && $openBrackets === 0) {
+                break;
+            }
+            if ($tokens[$i]['code'] === T_OPEN_PARENTHESIS) {
+                $openBrackets++;
+            }
+            if ($tokens[$i]['code'] === T_CLOSE_PARENTHESIS) {
+                $openBrackets--;
+            }
+        }
+
+        return $end;
     }
 }
